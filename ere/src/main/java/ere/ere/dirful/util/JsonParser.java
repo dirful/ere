@@ -53,41 +53,28 @@ public class JsonParser {
 	    		 List<JSONObject> tempList = new ArrayList<JSONObject>();
 	    		 for(JSONObject jsonObj : objList) {
 		    		 Object temp = new Object();
-		    		 // 如果变量中包含"["
+		    		 // 如果变量中包含"[",通过[可以判断是否是jsonArray
 		    		 if(str.contains("[")) {
 		    			 String key = str.substring(0,str.indexOf("["));
 		    			 Matcher matcher = patternDigit.matcher(str);
 		    			 if (matcher.find()) {
 		    				 int index = Integer.parseInt(matcher.group(1));
 		    				 JSONArray jSONArray = (JSONArray)jsonObj.get(key);
+		    				 // 得到具体索引下的对象
 		    				 temp = jSONArray.get(index);
-//		    	    		 if(temp instanceof String) {
-//		    	    			 System.out.println(temp.toString());
-//		    	    		 } else if (temp instanceof JSONObject){
-//		    	    			 tempList.add((JSONObject)temp);
-//		    	    		 }
 		    				 setTempList(temp, tempList);
 		    	    	 } else {
 		    	    		 JSONArray jSONArray = (JSONArray)jsonObj.get(key); 
+		    	    		 // 循环n变量的所有array
 		    	    		 for(int i=0 ; i < jSONArray.size() ;i++) {
 		    	    			 Object myObject = jSONArray.get(i);
 		    	    			 setTempList(myObject, tempList);
-//		    	    			 if(myObject instanceof String) {
-//			    	    			 System.out.println(myObject.toString());
-//			    	    		 } else if (myObject instanceof JSONObject){
-//			    	    			 tempList.add((JSONObject)myObject);
-//			    	    		 }
 		    	    			 
 		    	    		 }
 		    	    	 }
 		    		 } else {
 		    			 temp = jsonObj.get(str);
 		    			 setTempList(temp, tempList);
-//		    			 if(temp instanceof String) {
-//	    	    			 System.out.println(temp.toString());
-//	    	    		 } else if (temp instanceof JSONObject){
-//	    	    			 tempList.add((JSONObject)temp);
-//	    	    		 }
 		    		 }
 	    		 }
 	    		 
