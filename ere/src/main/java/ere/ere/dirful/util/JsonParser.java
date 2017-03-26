@@ -29,13 +29,15 @@ public class JsonParser {
 	    			"{ \"firstName\": \"Tad\", \"lastName\": \"Williams\", \"genre\": \"fantasy\" }," +
 	    			"{ \"firstName\": \"Frank\", \"lastName\": \"Peretti\", \"genre\": \"christian fiction\" }]," +
 	    			" \"musicians\": [ " +
-	    			"{ \"firstName\": [\"Eric\",\"Eric2\"], \"lastName\": \"Clapton\", \"instrument\": \"guitar\" }," +
-	    			"{ \"firstName\": \"Sergei\", \"lastName\": \"Rachmaninoff\", \"instrument\": \"piano\" }] }";
+	    			"{ \"firstName\": [{\"AA\":\"Eric\",\"BB\":\"Eric2\"},{\"AA\":\"Fric\",\"BB\":\"Fric2\"}], \"lastName\": \"Clapton\", \"instrument\": \"guitar\" }," +
+	    			"{ \"firstName\": [{\"AA\":\"Sergei\",\"BB\":\"Sergei2\"},{\"AA\":\"Tric\",\"BB\":\"Tric2\"}], \"lastName\": \"Rachmaninoff\", \"instrument\": \"piano\" }] }";
 	    	
 	    	 String jsonExpress1 ="programmers[n].firstName"; // 解析json表达式 (phaser json express)
 	    	 String jsonExpress2 ="authors[0].firstName";
-	    	 String jsonExpress3 ="musicians[0].firstName[n]";
+	    	 String jsonExpress3 ="musicians[n].firstName[n].BB";
+	    	 String jsonExpress4 ="musicians[1].firstName[1].AA";
 	    	 JSONObject obj = JSONObject.fromObject(people); // 将String数组转化成json (String to json);
+	    	 // TODO
 	    	 String jsonExp[] = jsonExpress3.split("\\.");   // 将解析式"."拆解
 	    	// 取[]号中的数字
 	    	 String arrRegexDigit = "\\[(\\d+)\\]";
@@ -58,31 +60,34 @@ public class JsonParser {
 		    			 if (matcher.find()) {
 		    				 int index = Integer.parseInt(matcher.group(1));
 		    				 JSONArray jSONArray = (JSONArray)jsonObj.get(key);
-		    				 temp = jSONArray.getJSONObject(index);
-		    	    		 if(temp instanceof String) {
-		    	    			 System.out.println(temp.toString());
-		    	    		 } else if (temp instanceof JSONObject){
-		    	    			 tempList.add((JSONObject)temp);
-		    	    		 }
+		    				 temp = jSONArray.get(index);
+//		    	    		 if(temp instanceof String) {
+//		    	    			 System.out.println(temp.toString());
+//		    	    		 } else if (temp instanceof JSONObject){
+//		    	    			 tempList.add((JSONObject)temp);
+//		    	    		 }
+		    				 setTempList(temp, tempList);
 		    	    	 } else {
 		    	    		 JSONArray jSONArray = (JSONArray)jsonObj.get(key); 
 		    	    		 for(int i=0 ; i < jSONArray.size() ;i++) {
 		    	    			 Object myObject = jSONArray.get(i);
-		    	    			 if(myObject instanceof String) {
-			    	    			 System.out.println(myObject.toString());
-			    	    		 } else if (myObject instanceof JSONObject){
-			    	    			 tempList.add((JSONObject)myObject);
-			    	    		 }
+		    	    			 setTempList(myObject, tempList);
+//		    	    			 if(myObject instanceof String) {
+//			    	    			 System.out.println(myObject.toString());
+//			    	    		 } else if (myObject instanceof JSONObject){
+//			    	    			 tempList.add((JSONObject)myObject);
+//			    	    		 }
 		    	    			 
 		    	    		 }
 		    	    	 }
 		    		 } else {
 		    			 temp = jsonObj.get(str);
-		    			 if(temp instanceof String) {
-	    	    			 System.out.println(temp.toString());
-	    	    		 } else if (temp instanceof JSONObject){
-	    	    			 tempList.add((JSONObject)temp);
-	    	    		 }
+		    			 setTempList(temp, tempList);
+//		    			 if(temp instanceof String) {
+//	    	    			 System.out.println(temp.toString());
+//	    	    		 } else if (temp instanceof JSONObject){
+//	    	    			 tempList.add((JSONObject)temp);
+//	    	    		 }
 		    		 }
 	    		 }
 	    		 
@@ -91,12 +96,19 @@ public class JsonParser {
 	    		 
 	    	 }
 	    	 
-	    	 
-	    	 
-	    	 
-	    	 
 		}
-	 
+	 /**
+	  * 将实体放入到list中
+	  * @param obj
+	  * @param list
+	  */
+	 public static void setTempList(Object obj,List list) {
+		 if(obj instanceof String) {
+			 System.out.println(obj.toString());
+		 } else if (obj instanceof JSONObject){
+			 list.add((JSONObject)obj);
+		 }
+	 }
 	 
 	    /** 
 	     * 对象转换成JSON字符串 
