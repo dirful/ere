@@ -8,6 +8,8 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import ere.ere.dirful.handle.ExcelHandle;
+
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
@@ -36,61 +38,72 @@ public class JsonParser {
 	    	 String jsonExpress2 ="authors[0].firstName";
 	    	 String jsonExpress3 ="musicians[n].firstName[n].BB";
 	    	 String jsonExpress4 ="musicians[1].firstName[1].AA";
-	    	 JSONObject obj = JSONObject.fromObject(people); // 将String数组转化成json (String to json);
-	    	 // TODO
-	    	 String jsonExp[] = jsonExpress3.split("\\.");   // 将解析式"."拆解
-	    	// 取[]号中的数字
-	    	 String arrRegexDigit = "\\[(\\d+)\\]";
-	    	 Pattern patternDigit = Pattern.compile(arrRegexDigit);
-//	    	// 取[]号中的变量n
-//	    	 String arrRegex2="\\[(n)\\]";
-//	    	 Pattern patternVariable = Pattern.compile(arrRegex2);
-	    	 // 定义一个list存放get key以后的数据
-	    	 List<JSONObject> objList = new ArrayList<JSONObject>();
-	    	 objList.add(obj);
-	    	 for(String str : jsonExp) {
-	    		 // 定义一个临时list存放当前循环得到的jsonobject
-	    		 List<JSONObject> tempList = new ArrayList<JSONObject>();
-	    		 for(JSONObject jsonObj : objList) {
-		    		 Object temp = new Object();
-		    		 // 如果变量中包含"[",通过[可以判断是否是jsonArray
-		    		 if(str.contains("[")) {
-		    			 String key = str.substring(0,str.indexOf("["));
-		    			 Matcher matcher = patternDigit.matcher(str);
-		    			 if (matcher.find()) {
-		    				 int index = Integer.parseInt(matcher.group(1));
-		    				 JSONArray jSONArray = (JSONArray)jsonObj.get(key);
-		    				 // 得到具体索引下的对象
-		    				 temp = jSONArray.get(index);
-		    				 setTempList(temp, tempList);
-		    	    	 } else {
-		    	    		 JSONArray jSONArray = (JSONArray)jsonObj.get(key); 
-		    	    		 // 循环n变量的所有array
-		    	    		 for(int i=0 ; i < jSONArray.size() ;i++) {
-		    	    			 Object myObject = jSONArray.get(i);
-		    	    			 setTempList(myObject, tempList);
-		    	    			 
-		    	    		 }
-		    	    	 }
-		    		 } else {
-		    			 temp = jsonObj.get(str);
-		    			 setTempList(temp, tempList);
-		    		 }
-	    		 }
-	    		 
-	    		 objList.clear();     // 清楚list存放数据
-	    		 objList = tempList;  // list存放新的数据
-	    		 
+	    	 List<String> list = getJsonVale(jsonExpress3, people);
+	    	 for(String str: list) {
+	    		 System.out.println("value:"+str);
 	    	 }
+
 	    	 
 		}
+	 public static List<String>  getJsonVale(String expression, String jsonString) {
+		 List<String> valueList = new ArrayList<String>();
+    	 JSONObject obj = JSONObject.fromObject(jsonString); // 将String数组转化成json (String to json);
+    	 
+    	 String jsonExp[] = expression.split("\\.");   // 将解析式"."拆解
+    	// 取[]号中的数字
+    	 String arrRegexDigit = "\\[(\\d+)\\]";
+    	 Pattern patternDigit = Pattern.compile(arrRegexDigit);
+//    	// 取[]号中的变量n
+//    	 String arrRegex2="\\[(n)\\]";
+//    	 Pattern patternVariable = Pattern.compile(arrRegex2);
+    	 // 定义一个list存放get key以后的数据
+    	 List<JSONObject> objList = new ArrayList<JSONObject>();
+    	 objList.add(obj);
+    	 for(String str : jsonExp) {
+    		 // 定义一个临时list存放当前循环得到的jsonobject
+    		 List<JSONObject> tempList = new ArrayList<JSONObject>();
+    		 for(JSONObject jsonObj : objList) {
+	    		 Object temp = new Object();
+	    		 // 如果变量中包含"[",通过[可以判断是否是jsonArray
+	    		 if(str.contains("[")) {
+	    			 String key = str.substring(0,str.indexOf("["));
+	    			 Matcher matcher = patternDigit.matcher(str);
+	    			 if (matcher.find()) {
+	    				 int index = Integer.parseInt(matcher.group(1));
+	    				 JSONArray jSONArray = (JSONArray)jsonObj.get(key);
+	    				 // 得到具体索引下的对象
+	    				 temp = jSONArray.get(index);
+	    				 setTempList(temp, tempList, valueList);
+	    	    	 } else {
+	    	    		 JSONArray jSONArray = (JSONArray)jsonObj.get(key); 
+	    	    		 // 循环n变量的所有array
+	    	    		 for(int i=0 ; i < jSONArray.size() ;i++) {
+	    	    			 Object myObject = jSONArray.get(i);
+	    	    			 setTempList(myObject, tempList, valueList);
+	    	    			 
+	    	    		 }
+	    	    	 }
+	    		 } else {
+	    			 temp = jsonObj.get(str);
+	    			 setTempList(temp, tempList, valueList);
+	    		 }
+    		 }
+    		 
+    		 objList.clear();     // 清楚list存放数据
+    		 objList = tempList;  // list存放新的数据
+    		 
+    	 }
+    	 return valueList;
+	 }
 	 /**
 	  * 将实体放入到list中
-	  * @param obj
-	  * @param list
+	  * @param obj   包含jsonobject、string实体
+	  * @param list  
+	  * @param valueList json解析后的值list
 	  */
-	 public static void setTempList(Object obj,List list) {
+	 public static void setTempList(Object obj,List<JSONObject> list, List<String> valueList) {
 		 if(obj instanceof String) {
+			 valueList.add(obj.toString());
 			 System.out.println(obj.toString());
 		 } else if (obj instanceof JSONObject){
 			 list.add((JSONObject)obj);

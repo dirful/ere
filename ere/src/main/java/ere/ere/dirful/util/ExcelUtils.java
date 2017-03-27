@@ -687,6 +687,31 @@ public class ExcelUtils {
         fis.close();
         return templateMap;
     }
+    
+    /**
+     * 读数据模板
+     * @param 模板地址
+     * @throws IOException
+     */
+    public static HashMap[] getJsonTemplateFile(String templateFileName) throws IOException {    
+        FileInputStream fis = new FileInputStream(templateFileName);
+         
+        Workbook wbPartModule = null;
+        if(templateFileName.endsWith(".xlsx")){
+            wbPartModule = new XSSFWorkbook(fis);
+        }else if(templateFileName.endsWith(".xls")){
+            wbPartModule = new HSSFWorkbook(fis);
+        }
+        int numOfSheet = wbPartModule.getNumberOfSheets();
+        HashMap[] templateMap = new HashMap[numOfSheet];
+        for(int i = 0; i < numOfSheet; i++){
+            Sheet sheet = wbPartModule.getSheetAt(i);
+            templateMap[i] = new HashMap();
+            readSheetJsonTemp(templateMap[i], sheet);
+        }
+        fis.close();
+        return templateMap;
+    }
       
     /**
      * 读模板数据的样式值置等信息
@@ -704,6 +729,9 @@ public class ExcelUtils {
             }
             int firstCellNum = rowIn.getFirstCellNum();
             int lastCellNum = rowIn.getLastCellNum();
+            if(lastCellNum <=0) {
+            	continue;
+            }
             for (int k = firstCellNum; k <= lastCellNum; k++) {
 //              Cell cellIn = rowIn.getCell((short) k);
                 Cell cellIn = rowIn.getCell(k);
@@ -720,21 +748,83 @@ public class ExcelUtils {
                     continue;
                 }
                 cellValue = cellValue.trim();
-                if(cellValue.length() > 2 && cellValue.substring(0,2).equals("<%")) {
+                if(cellValue.length() > 1 && cellValue.substring(0,1).equals(":")) {
+                    String key = cellValue.substring(1, cellValue.length());
+                    String keyPos = Integer.toString(k)+","+Integer.toString(j);
+                    keyMap.put(key, keyPos);
+                    keyMap.put(key+"CellStyle$", cellIn.getCellStyle());
+                } else if(cellValue.length() > 2 && cellValue.substring(0,2).equals("<%")) {
                     String key = cellValue.substring(2, cellValue.length());
                     String keyPos = Integer.toString(k)+","+Integer.toString(j);
                     keyMap.put(key, keyPos);
-                    keyMap.put(key+"CellStyle", cellIn.getCellStyle());
+                    keyMap.put(key+"CellStyle$", cellIn.getCellStyle());
                 } else if(cellValue.length() > 3 && cellValue.substring(0,3).equals("<!%")) {
                     String key = cellValue.substring(3, cellValue.length());
                     keyMap.put("STARTCELL", Integer.toString(j));
                     keyMap.put(key, Integer.toString(k));
-                    keyMap.put(key+"CellStyle", cellIn.getCellStyle());
+                    keyMap.put(key+"CellStyle$", cellIn.getCellStyle());
                 }
             }
         }
     }
       
+    /**
+     * 读模板数据的样式值置等信息
+     * @param keyMap 存放模板变量值位置、样式
+     * @param sheet  工作表对象
+     */
+    public static void readSheetJsonTemp(HashMap keyMap, Sheet sheet){
+    	
+        int firstRowNum = sheet.getFirstRowNum();
+        int lastRowNum = sheet.getLastRowNum();
+        String loopFlag = "s"; // 循环的标识；s-单个值；l-标识循环
+          
+        for (int j = firstRowNum; j <= lastRowNum; j++) {
+        	loopFlag = "s";
+        	// 将每行key放到一个map中
+        	HashMap rowMap =  new HashMap();
+            Row rowIn = sheet.getRow(j);
+            if(rowIn == null) {
+                continue;
+            }
+            int firstCellNum = rowIn.getFirstCellNum();
+            int lastCellNum = rowIn.getLastCellNum();
+            if(lastCellNum <=0) {
+            	continue;
+            }
+            for (int k = firstCellNum; k <= lastCellNum; k++) {
+//              Cell cellIn = rowIn.getCell((short) k);
+                Cell cellIn = rowIn.getCell(k);
+                if(cellIn == null) {
+                    continue;
+                }
+                  
+                int cellType = cellIn.getCellType();
+                if(Cell.CELL_TYPE_STRING != cellType) {
+                    continue;
+                }
+                String cellValue = cellIn.getStringCellValue();
+                if(cellValue == null) {
+                    continue;
+                }
+                cellValue = cellValue.trim();
+                if(cellValue.length() > 1 && cellValue.substring(0,1).equals(":")) {
+                    String key = cellValue.substring(1, cellValue.length());
+                    String keyPos = Integer.toString(k)+","+Integer.toString(j);
+                    rowMap.put(key, keyPos);
+                    rowMap.put(key+"CellStyle$", cellIn.getCellStyle());
+                    // 如果存在标识符[n]，说明该行有值要进行循环
+                    if(key.contains("[n]")) {
+                    	loopFlag = "l";
+                    }
+                } 
+            }
+            if(rowMap.size() > 0) {
+	            // 将行map存放到keymap中
+	            keyMap.put(loopFlag+j,rowMap);
+            }
+        }
+    }
     /**
      * 获取格式，不适于循环方法中使用，wb.createCellStyle()次数超过4000将抛异常
      * @param keyMap
@@ -744,7 +834,7 @@ public class ExcelUtils {
     public static CellStyle getStyle(HashMap keyMap, String key,Workbook wb) {
         CellStyle cellStyle = null;      
           
-        cellStyle = (CellStyle) keyMap.get(key+"CellStyle");
+        cellStyle = (CellStyle) keyMap.get(key+"CellStyle$");
         //当字符超出时换行
         cellStyle.setWrapText(true);
         CellStyle newStyle = wb.createCellStyle();
@@ -814,6 +904,22 @@ public class ExcelUtils {
         int[] excelPos = getPos(pos, cellStyle);
         setValue(sheet, startCell, excelPos[0], value, getStyle(pos, cellStyle,wbModule));
     }
+    
+    /** 
+     * 找到需要插入的行数，并新建一个POI的row对象 
+     * @param sheet 
+     * @param rowIndex 
+     * @return 
+     */  
+    public static Row createRow(Sheet sheet, Integer rowIndex) {  
+         Row row = null;  
+         if (sheet.getRow(rowIndex) != null) {  
+             int lastRowNo = sheet.getLastRowNum();  
+             sheet.shiftRows(rowIndex, lastRowNo, 1);  
+         }  
+         row = sheet.createRow(rowIndex);  
+         return row;  
+     }  
     /************************************XSSF***************************************
     /** 
      * @param args 
@@ -872,7 +978,7 @@ public class ExcelUtils {
         // System.out.println(ExcelUtils.getData("D:\\test.xls", "333", 5, 1));  
   
         // 复制指定工作表  
-        ExcelUtils.copySheet("D:\\考场模版2.XLS", "333", 0);  
+        ExcelUtils.copySheet("D:\\data.xlsx", "333", 0);  
   
     }  
 }  

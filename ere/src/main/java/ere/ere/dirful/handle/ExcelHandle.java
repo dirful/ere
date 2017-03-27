@@ -1,4 +1,4 @@
-package ere.ere.dirful.util;
+package ere.ere.dirful.handle;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -7,6 +7,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,6 +17,9 @@ import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+import ere.ere.dirful.util.ExcelUtils;
+import ere.ere.dirful.util.JsonParser;
  
 /**
  * 对excel进行操作工具类
@@ -79,6 +83,7 @@ public class ExcelHandle {
         int startCell = Integer.parseInt((String)temp.get("STARTCELL"));
         //数据填充的sheet
         Sheet wsheet = temWorkbook.getSheetAt(sheet);
+        
         //移除模板开始行数据即<!%
         wsheet.removeRow(wsheet.getRow(startCell));
         if(dataList!=null&&dataList.size()>0){
@@ -87,9 +92,12 @@ public class ExcelHandle {
                     //获取对应单元格数据
                     Cell c = getCell(cell,temp,temWorkbook,tempFilePath);
                     //写入数据
+                    
                     ExcelUtils.setValue(wsheet, startCell, c.getColumn(), map.get(cell), c.getCellStyle());
+                    
                 }
                 startCell++;
+                ExcelUtils.createRow(wsheet,startCell);
             }
         }
     }
@@ -116,6 +124,99 @@ public class ExcelHandle {
                 ExcelUtils.setValue(wsheet, c.getLine(), c.getColumn(), dataMap.get(cell), c.getCellStyle());
             }
         }
+    }
+    
+    /**
+     * 根据json数据和模板导出数据
+     * @param tempFilePath  模板路径
+     * @param jsonString    要导出报表的字符串
+     * @param dataList
+     * @param sheet         第几张报表
+     * @throws IOException
+     */
+    public void writeJsonData(String tempFilePath,String jsonString, List<String> dataList,int sheet) throws IOException {
+    	List<Integer> loopKey = new ArrayList<Integer>();
+    	//获取模板填充格式位置等数据
+        HashMap temp = getJsonTemp(tempFilePath,sheet);
+        //按模板为写入板
+        Workbook temWorkbook = getTempWorkbook(tempFilePath);
+        //数据填充的sheet
+        Sheet wsheet = temWorkbook.getSheetAt(sheet);
+        for (Object entry: temp.keySet()) { 
+        	cellMap.get(tempFilePath).clear();
+        	// 关键字样式如s1，l6等
+        	String key = entry.toString();
+        	// 对于标识s即单个数据进行处理
+        	if(key.startsWith("s")) {
+        		HashMap rowMap = (HashMap) temp.get(key);
+        		for (Object rowKey: rowMap.keySet()) {
+        			// 不遍历样式为key的值
+        			if(rowKey.toString().endsWith("CellStyle$")) {
+        				continue;
+        			}
+        			//获取对应单元格数据
+                    Cell c = getCell(rowKey.toString(),rowMap,temWorkbook,tempFilePath);
+                    // 得到当前模板变量解析的json值
+                    List<String> list = JsonParser.getJsonVale(rowKey.toString(),jsonString);
+                    String value = "";
+                    if(list.size() > 0) {
+                    	value = list.get(0);
+                    }
+                    ExcelUtils.setValue(wsheet, c.getLine(), c.getColumn(), value, c.getCellStyle());
+        		}
+        	} else {
+        		// 将l开始的key全部放到list，并转成int型完成排序
+        		loopKey.add(Integer.parseInt(key.substring(1)));
+        	} 
+            System.out.println("Key = " + entry);  
+          
+        }  
+        // 对loopkey进行排序
+        Collections.sort(loopKey);
+        for(Integer keyint:loopKey) {
+        	cellMap.get(tempFilePath).clear();
+        	HashMap rowMap = (HashMap) temp.get("l"+keyint);
+        	int i = 0;
+        	for (Object rowKey: rowMap.keySet()) {
+        		// 不遍历样式为key的值
+    			if(rowKey.toString().endsWith("CellStyle$")) {
+    				continue;
+    			}
+    			//获取对应单元格数据
+                Cell c = getCell(rowKey.toString(),rowMap,temWorkbook,tempFilePath);
+                // 得到当前模板变量解析的json值
+                List<String> list = JsonParser.getJsonVale(rowKey.toString(),jsonString);
+                int startCell = c.getLine();
+                if(i==0) {
+                	wsheet.removeRow(wsheet.getRow(startCell));
+                }
+                for(String value : list) {
+                	ExcelUtils.setValue(wsheet, startCell, c.getColumn(), value, c.getCellStyle());
+                	startCell ++;
+                	if(i == 0)
+                	ExcelUtils.createRow(wsheet,startCell);
+                }
+                i++;
+                
+        	}
+        }
+//        //获取数据填充开始行
+//        int startCell = Integer.parseInt((String)temp.get("STARTCELL"));
+//        //数据填充的sheet
+//        Sheet wsheet = temWorkbook.getSheetAt(sheet);
+//        //移除模板开始行数据即<!%
+//        wsheet.removeRow(wsheet.getRow(startCell));
+//        if(dataList!=null&&dataList.size()>0){
+//            for(String value :dataList){
+//               
+//                    //获取对应单元格数据
+//                    Cell c = getCell(cell,temp,temWorkbook,tempFilePath);
+//                    //写入数据
+//                    ExcelUtils.setValue(wsheet, startCell, c.getColumn(), value, c.getCellStyle());
+//               
+//                startCell++;
+//            }
+//        }
     }
      
     /**
@@ -264,6 +365,21 @@ public class ExcelHandle {
         }
         return tempFileMap.get(tempFilePath)[sheet];
     }
+    
+    /**
+     * 获取JSON模板数据
+     * @param tempFilePath 模板文件路径
+     * @param sheet 
+     * @return
+     * @throws IOException
+     */
+    private HashMap getJsonTemp(String tempFilePath, int sheet) throws IOException {
+        if(!tempFileMap.containsKey(tempFilePath)){
+            tempFileMap.put(tempFilePath, ExcelUtils.getJsonTemplateFile(tempFilePath));
+            cellMap.put(tempFilePath, new HashMap<String,Cell>());
+        }
+        return tempFileMap.get(tempFilePath)[sheet];
+    }
      
     /**
      * 资源关闭
@@ -311,7 +427,7 @@ public class ExcelHandle {
     }
      
     public static void main(String args[]) throws IOException{
-        String tempFilePath = ExcelHandle.class.getResource("test.xlsx").getPath();
+        String tempFilePath = ExcelHandle.class.getResource("/test3.xlsx").getPath();
         List<String> dataListCell = new ArrayList<String>();
         dataListCell.add("names");
         dataListCell.add("ages");
@@ -342,10 +458,8 @@ public class ExcelHandle {
         map3.put("sexs", "男");
         map3.put("deses", "测试3");
         dataList.add(map3);
-         
+//         
         ExcelHandle handle = new  ExcelHandle();
-        handle.writeListData(tempFilePath, dataListCell, dataList, 0);
-         
         List<String> dataCell = new ArrayList<String>();
         dataCell.add("name");
         dataCell.add("age");
@@ -356,9 +470,29 @@ public class ExcelHandle {
         dataMap.put("age", 11);
         dataMap.put("sex", "女");
         dataMap.put("des", "测试");
-         
+//         
         handle.writeData(tempFilePath, dataCell, dataMap, 0);
+        handle.writeListData(tempFilePath, dataListCell, dataList, 0);
          
+
+//        String people = "{ \"programmers\": [ { \"firstName\": \"Brett\", \"lastName\":\"McLaughlin\", \"email\": \"aaaa\" }," +
+//    			"{ \"firstName\":\"Jason\", \"lastName\":\"Hunter\", \"email\":\"bbbb\" }," +
+//    			"{ \"firstName\": \"Elliotte\", \"lastName\":\"Harold\", \"email\": \"cccc\" }]," +
+//    			"\"authors\": [" +
+//    			"{ \"firstName\": \"Isaac\", \"lastName\": \"Asimov\", \"genre\": \"science fiction\" }," +
+//    			"{ \"firstName\": \"Tad\", \"lastName\": \"Williams\", \"genre\": \"fantasy\" }," +
+//    			"{ \"firstName\": \"Frank\", \"lastName\": \"Peretti\", \"genre\": \"christian fiction\" }]," +
+//    			" \"musicians\": [ " +
+//    			"{ \"firstName\": [{\"AA\":\"Eric\",\"BB\":\"Eric2\"},{\"AA\":\"Fric\",\"BB\":\"Fric2\"}], \"lastName\": \"Clapton\", \"instrument\": \"guitar\" }," +
+//    			"{ \"firstName\": [{\"AA\":\"Sergei\",\"BB\":\"Sergei2\"},{\"AA\":\"Tric\",\"BB\":\"Tric2\"}], \"lastName\": \"Rachmaninoff\", \"instrument\": \"piano\" }] }";
+//        
+//    	 String jsonExpress1 ="programmers[n].firstName"; // 解析json表达式 (phaser json express)
+//    	 String jsonExpress2 ="authors[0].firstName";
+//    	 String jsonExpress3 ="musicians[n].firstName[n].BB";
+//    	 String jsonExpress4 ="musicians[n].firstName[n].AA";
+//    	 List<String> list = JsonParser.getJsonVale(jsonExpress3, people);
+//    	handle.writeJsonData(tempFilePath,"names",list,0);
+//    	handle.writeJsonData(tempFilePath,"ages",JsonParser.getJsonVale(jsonExpress4, people),0);
         File file = new File("d:/data.xlsx");
         OutputStream os = new FileOutputStream(file);
         //写到输出流并关闭资源
@@ -367,20 +501,20 @@ public class ExcelHandle {
         os.flush();
         os.close();
          
-        System.out.println("读取写入的数据----------------------------------%%%");
-        System.out.println("name:"+handle.getValue(tempFilePath, "name", 0, file));
-        System.out.println("age:"+handle.getValue(tempFilePath, "age", 0, file));
-        System.out.println("sex:"+handle.getValue(tempFilePath, "sex", 0, file));
-        System.out.println("des:"+handle.getValue(tempFilePath, "des", 0, file));
-        System.out.println("读取写入的列表数据----------------------------------%%%");
-        List<Map<String,Object>> list = handle.getListValue(tempFilePath, dataListCell, 0, file);
-        for(Map<String,Object> data:list){
-            for(String key:data.keySet()){
-                System.out.print(key+":"+data.get(key)+"--");
-            }
-            System.out.println("");
-        }
-         
+//        System.out.println("读取写入的数据----------------------------------%%%");
+//        System.out.println("name:"+handle.getValue(tempFilePath, "name", 0, file));
+//        System.out.println("age:"+handle.getValue(tempFilePath, "age", 0, file));
+//        System.out.println("sex:"+handle.getValue(tempFilePath, "sex", 0, file));
+//        System.out.println("des:"+handle.getValue(tempFilePath, "des", 0, file));
+//        System.out.println("读取写入的列表数据----------------------------------%%%");
+//        List<Map<String,Object>> list = handle.getListValue(tempFilePath, dataListCell, 0, file);
+//        for(Map<String,Object> data:list){
+//            for(String key:data.keySet()){
+//                System.out.print(key+":"+data.get(key)+"--");
+//            }
+//            System.out.println("");
+//        }
+//         
         handle.readClose(tempFilePath);
     }
      
