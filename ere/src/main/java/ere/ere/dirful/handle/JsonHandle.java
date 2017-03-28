@@ -9,8 +9,15 @@ import java.util.Collections;
 import java.util.List;
 
 public class JsonHandle {
-	public void josnToExcel(String jsonString) throws IOException {
-		String tempFilePath = ExcelHandle.class.getResource("/test2.xlsx").getPath();
+	/**
+	 * 将json数据导出成excel
+	 * @param tempFilePath   模板路径
+	 * @param jsonString     json字符串
+	 * @param outputFilePath 输出文件路径
+	 * @throws IOException
+	 */
+	public void josnToExcel(String tempFilePath, String jsonString, String outputFilePath) throws IOException {
+		
 		ExcelHandle handle = new  ExcelHandle();
 		
 	        
@@ -19,8 +26,8 @@ public class JsonHandle {
 //	    	 String jsonExpress3 ="musicians[n].firstName[n].BB";
 //	    	 String jsonExpress4 ="musicians[n].firstName[n].AA";
 //	    	 List<String> list = JsonParser.getJsonVale(jsonExpress3, people);
-	    	 handle.writeJsonData(tempFilePath,jsonString,new ArrayList(),0);
-	    	 File file = new File("d:/data.xlsx");
+	    	 handle.writeJsonData2(tempFilePath,jsonString,new ArrayList(),0);
+	    	 File file = new File(outputFilePath);
 	         OutputStream os = new FileOutputStream(file);
 	         //写到输出流并关闭资源
 	         handle.writeAndClose(tempFilePath, os);
@@ -33,6 +40,8 @@ public class JsonHandle {
 	
 	public static void main(String[] args) {
 		try {
+			String tempFilePath = ExcelHandle.class.getResource("/test2.xlsx").getPath();
+			String outputFilePath = "d:/data.xlsx";
 			// 准备json数据
 			 String people = "{ \"programmers\": [ { \"firstName\": \"Brett\", \"lastName\":\"McLaughlin\", \"email\": \"aaaa\" }," +
 		    			"{ \"firstName\":\"Jason\", \"lastName\":\"Hunter\", \"email\":\"bbbb\" }," +
@@ -44,7 +53,7 @@ public class JsonHandle {
 		    			" \"musicians\": [ " +
 		    			"{ \"firstName\": [{\"AA\":\"Eric\",\"BB\":\"Eric2\"},{\"AA\":\"Fric\",\"BB\":\"Fric2\"}], \"lastName\": \"Clapton\", \"instrument\": \"guitar\" }," +
 		    			"{ \"firstName\": [{\"AA\":\"Sergei\",\"BB\":\"Sergei2\"},{\"AA\":\"Tric\",\"BB\":\"Tric2\"}], \"lastName\": \"Rachmaninoff\", \"instrument\": \"piano\" }] }";
-			new JsonHandle().josnToExcel(people);
+			new JsonHandle().josnToExcel(tempFilePath, people, outputFilePath);
 			
 //			List<Integer> list =  new ArrayList<Integer>();
 //			list.add(1);

@@ -707,7 +707,7 @@ public class ExcelUtils {
         for(int i = 0; i < numOfSheet; i++){
             Sheet sheet = wbPartModule.getSheetAt(i);
             templateMap[i] = new HashMap();
-            readSheetJsonTemp(templateMap[i], sheet);
+            readSheetJsonTemp2(templateMap[i], sheet);
         }
         fis.close();
         return templateMap;
@@ -823,6 +823,79 @@ public class ExcelUtils {
 	            // 将行map存放到keymap中
 	            keyMap.put(loopFlag+j,rowMap);
             }
+        }
+    }
+    
+    /**
+     * 读模板数据的样式值置等信息
+     * @param keyMap 存放模板变量值位置、样式
+     * @param sheet  工作表对象
+     */
+    public static void readSheetJsonTemp2(HashMap keyMap, Sheet sheet){
+    	
+        int firstRowNum = sheet.getFirstRowNum();
+        int lastRowNum = sheet.getLastRowNum();
+        List<HashMap> singleList = new ArrayList<HashMap>(); // 存放当前行完全不需要循环的数据map
+        List<HashMap> loopList = new ArrayList<HashMap>();   // 存放当前行有数据需要循环的map
+        String loopFlag = "s"; // 循环的标识；s-单个值；l-标识循环
+          
+        for (int j = firstRowNum; j <= lastRowNum; j++) {
+        	loopFlag = "s";
+        	// 将每行key放到一个map中
+        	HashMap rowMap =  new HashMap();
+            Row rowIn = sheet.getRow(j);
+            if(rowIn == null) {
+                continue;
+            }
+            int firstCellNum = rowIn.getFirstCellNum();
+            int lastCellNum = rowIn.getLastCellNum();
+            if(lastCellNum <=0) {
+            	continue;
+            }
+            for (int k = firstCellNum; k <= lastCellNum; k++) {
+//              Cell cellIn = rowIn.getCell((short) k);
+                Cell cellIn = rowIn.getCell(k);
+                if(cellIn == null) {
+                    continue;
+                }
+                  
+                int cellType = cellIn.getCellType();
+                if(Cell.CELL_TYPE_STRING != cellType) {
+                    continue;
+                }
+                String cellValue = cellIn.getStringCellValue();
+                if(cellValue == null) {
+                    continue;
+                }
+                cellValue = cellValue.trim();
+                if(cellValue.length() > 1 && cellValue.substring(0,1).equals(":")) {
+                    String key = cellValue.substring(1, cellValue.length());
+                    String keyPos = Integer.toString(k)+","+Integer.toString(j);
+                    rowMap.put(key, keyPos);
+                    rowMap.put(key+"CellStyle$", cellIn.getCellStyle());
+                    // 如果存在标识符[n]，说明该行有值要进行循环
+                    if(key.contains("[n]")) {
+                    	loopFlag = "l";
+                    }
+                } 
+            }
+            // 根据得到的循环标识，进行封装
+            if("s".equals(loopFlag)) {
+            	singleList.add(rowMap);
+            } else {
+            	loopList.add(rowMap);
+            }
+            
+        }
+        
+        // 将行list存放到keymap中
+        if(singleList.size() > 0) {
+            
+            keyMap.put("s",singleList);
+        }
+        if(loopList.size() > 0) {
+            // 将行map存放到keymap中
+            keyMap.put("l",loopList);
         }
     }
     /**

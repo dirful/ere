@@ -219,6 +219,79 @@ public class ExcelHandle {
 //        }
     }
      
+    
+    
+    /**
+     * 根据json数据和模板导出数据
+     * @param tempFilePath  模板路径
+     * @param jsonString    要导出报表的字符串
+     * @param dataList
+     * @param sheet         第几张报表
+     * @throws IOException
+     */
+    public void writeJsonData2(String tempFilePath,String jsonString, List<String> dataList,int sheet) throws IOException {
+    	List<Integer> loopKey = new ArrayList<Integer>();
+    	//获取模板填充格式位置等数据
+    	HashMap temp = getJsonTemp(tempFilePath,sheet);
+    	//按模板为写入板
+    	Workbook temWorkbook = getTempWorkbook(tempFilePath);
+    	//数据填充的sheet
+    	Sheet wsheet = temWorkbook.getSheetAt(sheet);
+    	
+    	List<HashMap> singleList = (ArrayList<HashMap>)temp.get("s");  // 存放当前行完全不需要循环的数据map
+        List<HashMap> loopList = (ArrayList<HashMap>)temp.get("l");   // 存放当前行有数据需要循环的map
+    	
+        // 先对不需要循环的数据赋值
+    	for (HashMap rowMap: singleList) { 
+    		cellMap.get(tempFilePath).clear();
+    		
+			for (Object rowKey: rowMap.keySet()) {
+				// 不遍历样式为key的值
+				if(rowKey.toString().endsWith("CellStyle$")) {
+					continue;
+				}
+				//获取对应单元格数据
+				Cell c = getCell(rowKey.toString(),rowMap,temWorkbook,tempFilePath);
+				// 得到当前模板变量解析的json值
+				List<String> list = JsonParser.getJsonVale(rowKey.toString(),jsonString);
+				String value = "";
+				if(list.size() > 0) {
+					value = list.get(0);
+				}
+				ExcelUtils.setValue(wsheet, c.getLine(), c.getColumn(), value, c.getCellStyle());
+			}
+    	 } 
+    		
+    	// 再对需要循环的数据进行赋值、循环插入行，这样就不会影响之前模板获得的数据项
+    	int i = 0;
+    	for (HashMap rowMap: loopList) { 
+    		cellMap.get(tempFilePath).clear();
+    		for (Object rowKey: rowMap.keySet()) {
+    			// 不遍历样式为key的值
+    			if(rowKey.toString().endsWith("CellStyle$")) {
+    				continue;
+    			}
+    			//获取对应单元格数据
+    			Cell c = getCell(rowKey.toString(),rowMap,temWorkbook,tempFilePath);
+    			// 得到当前模板变量解析的json值
+    			List<String> list = JsonParser.getJsonVale(rowKey.toString(),jsonString);
+    			int startCell = c.getLine();
+    			if(i==0) {
+    				wsheet.removeRow(wsheet.getRow(startCell));
+    			}
+    			for(String value : list) {
+    				ExcelUtils.setValue(wsheet, startCell, c.getColumn(), value, c.getCellStyle());
+    				startCell ++;
+    				if(i == 0)
+    					ExcelUtils.createRow(wsheet,startCell);
+    			}
+    			i++;
+    			
+    		}
+    	}
+    	
+
+}
     /**
      * Excel文件读值
      * @param tempFilePath
