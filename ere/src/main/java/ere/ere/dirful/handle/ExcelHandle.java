@@ -11,11 +11,14 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
- 
+
+
+
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import ere.ere.dirful.util.ExcelUtils;
@@ -230,7 +233,8 @@ public class ExcelHandle {
      * @throws IOException
      */
     public void writeJsonData2(String tempFilePath,String jsonString, List<String> dataList,int sheet) throws IOException {
-    	List<Integer> loopKey = new ArrayList<Integer>();
+
+    	int loopStartOffSzie = 0 ; // 定义循环造成的偏移量;
     	//获取模板填充格式位置等数据
     	HashMap temp = getJsonTemp(tempFilePath,sheet);
     	//按模板为写入板
@@ -244,6 +248,7 @@ public class ExcelHandle {
         // 先对不需要循环的数据赋值
     	for (HashMap rowMap: singleList) { 
     		cellMap.get(tempFilePath).clear();
+    		
     		
 			for (Object rowKey: rowMap.keySet()) {
 				// 不遍历样式为key的值
@@ -263,31 +268,63 @@ public class ExcelHandle {
     	 } 
     		
     	// 再对需要循环的数据进行赋值、循环插入行，这样就不会影响之前模板获得的数据项
-    	int i = 0;
     	for (HashMap rowMap: loopList) { 
+    		int i = 0;  // 用于记录单行循环了几个变量
     		cellMap.get(tempFilePath).clear();
+    		HashMap<String,List<String>> jsonValueMap = new HashMap();
+    		int maxCellRowNo = 0;
+    		// 得到生成的最大单元格数量,并将结果存储到map中
     		for (Object rowKey: rowMap.keySet()) {
-    			// 不遍历样式为key的值
+    			// 不遍历样式做为key的值
     			if(rowKey.toString().endsWith("CellStyle$")) {
     				continue;
     			}
+    			List<String> list = JsonParser.getJsonVale(rowKey.toString(),jsonString);
+    			jsonValueMap.put(rowKey.toString(), list);
+    			if(list != null && list.size() > maxCellRowNo) {
+    				maxCellRowNo = list.size();
+    			}
+    		}
+    		
+    		// 再次对需循环数据进行循环，插入到excel表中，进行循环、合并单元格操作
+    		for (Object rowKey: jsonValueMap.keySet()) {
+//    			// 不遍历样式做为key的值
+//    			if(rowKey.toString().endsWith("CellStyle$")) {
+//    				continue;
+//    			}
     			//获取对应单元格数据
     			Cell c = getCell(rowKey.toString(),rowMap,temWorkbook,tempFilePath);
     			// 得到当前模板变量解析的json值
-    			List<String> list = JsonParser.getJsonVale(rowKey.toString(),jsonString);
-    			int startCell = c.getLine();
-    			if(i==0) {
-    				wsheet.removeRow(wsheet.getRow(startCell));
+    			List<String> list = jsonValueMap.get(rowKey.toString());
+    			int startCell = loopStartOffSzie  + c.getLine() ;
+    			if(i == 0 ) {
+    				ExcelUtils.removeRow(wsheet,startCell);
     			}
-    			for(String value : list) {
+    			
+    			
+    			// 循环插入值
+    			for(int index= 0;index < maxCellRowNo; index ++) {
+    				String value = "";
+    				if(index < list.size()) {
+    					value = list.get(index);
+    				}
+    				
+    				// 只有获得第一个属性值时候才插入行
+    				if(i == 0) {
+    					
+    					ExcelUtils.createRow(wsheet,startCell);
+    				}
     				ExcelUtils.setValue(wsheet, startCell, c.getColumn(), value, c.getCellStyle());
     				startCell ++;
-    				if(i == 0)
-    					ExcelUtils.createRow(wsheet,startCell);
+    			}
+    			// 不需要循环的数据要进行单元格合并
+    			if(!rowKey.toString().contains("[n]")) {
+    				wsheet.addMergedRegion(new CellRangeAddress(loopStartOffSzie + c.getLine(),loopStartOffSzie + c.getLine() + maxCellRowNo-1 ,c.getColumn(),c.getColumn())); 
     			}
     			i++;
     			
     		}
+    		loopStartOffSzie = loopStartOffSzie + maxCellRowNo -1 ;
     	}
     	
 

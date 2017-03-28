@@ -985,14 +985,32 @@ public class ExcelUtils {
      * @return 
      */  
     public static Row createRow(Sheet sheet, Integer rowIndex) {  
-         Row row = null;  
-         if (sheet.getRow(rowIndex) != null) {  
-             int lastRowNo = sheet.getLastRowNum();  
-             sheet.shiftRows(rowIndex, lastRowNo, 1);  
-         }  
-         row = sheet.createRow(rowIndex);  
+         int lastRowNum=sheet.getLastRowNum();
+         if(rowIndex>=0&&rowIndex<lastRowNum){   
+             sheet.shiftRows(rowIndex,lastRowNum, 1);   
+         }   
+ 
+         Row row = sheet.createRow(rowIndex);  
          return row;  
      }  
+    
+    /**   
+     * Remove a row by its index   
+     * @param sheet a Excel sheet   
+     * @param rowIndex a 0 based index of removing row   
+     */   
+    public static void removeRow(Sheet sheet, int rowIndex) {   
+        int lastRowNum=sheet.getLastRowNum();   
+        if(rowIndex>=0&&rowIndex<lastRowNum){   
+            sheet.shiftRows(rowIndex+1,lastRowNum, -1);   
+        }   
+        if(rowIndex==lastRowNum){   
+            Row removingRow=sheet.getRow(rowIndex);   
+            if(removingRow!=null){   
+                sheet.removeRow(removingRow);   
+            }   
+        }   
+    } 
     /************************************XSSF***************************************
     /** 
      * @param args 
